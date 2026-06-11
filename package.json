@@ -9,7 +9,8 @@
   },
   "files": [
     "index.js",
-    "README.md"
+    "README.md",
+    "使用說明.md"
   ],
   "engines": {
     "node": ">=18"
