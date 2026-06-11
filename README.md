@@ -75,6 +75,8 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
 
 ## 三個示範玩法（教學場景）
 
+以下玩法**只需要 Padlet API key**，不需要 OpenAI key 等其他金鑰：
+
 **1. 一句話生成整面討論牆**
 > 「幫我開一面『一元一次方程式』課前討論牆，分四個 section：迷思澄清、生活應用、挑戰題、自由提問，每區放 3 個引導問題。」
 
@@ -83,6 +85,8 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
 
 **3. AI 助教即時個別回饋**
 > 「每 60 秒檢查這面牆，答對的卡片加 ❤️，有迷思的在底下留一句蘇格拉底式提問，不要直接給答案。」
+
+🔧 **選配玩法**（需額外能力，詳見[使用說明](使用說明.md)）：AI 生圖貼牆（需 OpenAI API key＋GitHub 圖床）、照片作業批改（需 Agent 有視覺辨識）、`/loop` 自動輪詢（Claude Code 限定）。
 
 ## API 限制（Padlet 官方 API 的邊界）
 
