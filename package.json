@@ -1,0 +1,35 @@
+{
+  "name": "padlet-mcp",
+  "version": "0.1.0",
+  "description": "Padlet MCP Server — 讓 Claude Code / Claude Desktop / Cursor 等 AI Agent 直接操作 Padlet：一句話生成新版子、讀牆、貼卡片、留言、加 reaction。",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "padlet-mcp": "index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "padlet",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agent",
+    "education"
+  ],
+  "author": "mathruffian-dot",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mathruffian-dot/padlet-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  }
+}
