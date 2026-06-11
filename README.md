@@ -11,6 +11,7 @@
 | `create_post` | 貼卡片（區段「名稱」定位、顏色、URL 附件＋說明、**poll 投票**） |
 | `create_comment` | 在卡片下留言（個別化回饋） |
 | `add_reaction` | 加愛心 / 星等 / 評分 / 投票 |
+| `get_attachment` | 讀卡片附件：學生上傳的照片/檔案網址、**poll 即時票數** |
 | `whoami` | 驗證 API key、查目前帳號 |
 
 ## 事前準備：取得 Padlet API Key

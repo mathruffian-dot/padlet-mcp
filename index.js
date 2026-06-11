@@ -386,6 +386,25 @@ server.registerTool(
   }
 );
 
+// ════════════════════════════════════════════════
+// Tool 7：get_attachment — 讀取卡片附件資料（含投票結果）
+// ════════════════════════════════════════════════
+server.registerTool(
+  "get_attachment",
+  {
+    description:
+      "讀取指定 post 的附件詳細資料：附件原始網址（可下載學生上傳的照片/檔案做批改）、預覽圖、嵌入碼，" +
+      "以及 poll 投票的「即時結果」（問題、各選項票數、是否進行中）。post ID 可先用 get_board 取得。",
+    inputSchema: {
+      post_id: z.string().describe("post 的 hash ID（用 get_board 查）"),
+    },
+  },
+  async ({ post_id }) => {
+    const json = await api(`/posts/${post_id}/attachmentData`);
+    return ok(json);
+  }
+);
+
 // ── 啟動 ──
 const transport = new StdioServerTransport();
 await server.connect(transport);
