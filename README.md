@@ -8,7 +8,7 @@
 |------|----------|
 | `create_board` | **一句話生成全新 Padlet**（AI Recipe，可指定 sections 與初始內容） |
 | `get_board` | 讀整面牆：標題、區段、所有卡片、所有留言 |
-| `create_post` | 貼卡片（可用區段「名稱」指定位置、設顏色、加附件） |
+| `create_post` | 貼卡片（區段「名稱」定位、顏色、URL 附件＋說明、**poll 投票**） |
 | `create_comment` | 在卡片下留言（個別化回饋） |
 | `add_reaction` | 加愛心 / 星等 / 評分 / 投票 |
 | `whoami` | 驗證 API key、查目前帳號 |

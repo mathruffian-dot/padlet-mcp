@@ -235,12 +235,23 @@ server.registerTool(
   "create_post",
   {
     description:
-      "在 Padlet board 上新增一則 post（卡片）。可用 section 的「標題名稱」指定要貼到哪個區段（工具會自動比對 ID），也可加附件網址、指定顏色。",
+      "在 Padlet board 上新增一則 post（卡片）。可用 section 的「標題名稱」指定要貼到哪個區段（工具會自動比對 ID）。" +
+      "附件支援兩類：①任何公開網址（圖片/影片/YouTube/PDF/網頁，Padlet 自動產生預覽）②poll 投票（問題＋選項）。" +
+      "不支援直接上傳本機檔案——檔案需先有公開網址。",
     inputSchema: {
       board: z.string().describe("Padlet 網址或 board ID"),
       subject: z.string().optional().describe("卡片標題"),
       body: z.string().optional().describe("卡片內文"),
-      attachment_url: z.string().optional().describe("附件的公開網址（圖片、檔案、連結）"),
+      attachment_url: z
+        .string()
+        .optional()
+        .describe("附件的公開網址（圖片、影片、YouTube、PDF、網頁連結等）"),
+      attachment_caption: z.string().optional().describe("附件的說明文字"),
+      poll_question: z.string().optional().describe("投票問題（附一題投票時使用）"),
+      poll_choices: z
+        .array(z.string())
+        .optional()
+        .describe("投票選項列表，例：[\"紅色\", \"藍色\", \"綠色\"]"),
       section: z
         .string()
         .optional()
@@ -251,9 +262,20 @@ server.registerTool(
         .describe("卡片顏色"),
     },
   },
-  async ({ board, subject, body, attachment_url, section, color }) => {
-    if (!subject && !body && !attachment_url) {
-      throw new Error("subject、body、attachment_url 至少要有一個");
+  async ({
+    board,
+    subject,
+    body,
+    attachment_url,
+    attachment_caption,
+    poll_question,
+    poll_choices,
+    section,
+    color,
+  }) => {
+    const hasPoll = poll_question && poll_choices?.length;
+    if (!subject && !body && !attachment_url && !hasPoll) {
+      throw new Error("subject、body、attachment_url、poll 至少要有一個");
     }
     const boardId = resolveBoardId(board);
 
@@ -280,7 +302,13 @@ server.registerTool(
     const content = {};
     if (subject) content.subject = subject;
     if (body) content.body = body;
-    if (attachment_url) content.attachment = { url: attachment_url };
+    if (attachment_url || hasPoll) {
+      content.attachment = {
+        ...(attachment_url ? { url: attachment_url } : {}),
+        ...(attachment_caption ? { caption: attachment_caption } : {}),
+        ...(hasPoll ? { poll: { question: poll_question, choices: poll_choices } } : {}),
+      };
+    }
 
     const payload = {
       data: {
