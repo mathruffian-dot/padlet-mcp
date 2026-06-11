@@ -74,6 +74,7 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
 - ❌ 不能刪除、編輯既有卡片
 - ❌ 不能在既有版子新增 section（開新版子時可以用指令描述讓 AI 生成）
 - ❌ 不能刪除版子、改版子設定
+- ⚠️ **AI 生成的新版子預設「關閉」留言與 reactions**——要用 `create_comment` / `add_reaction` 前，先到版子設定手動開啟（設定 → 互動）
 - 這些操作請回 Padlet 介面手動處理
 
 ## License

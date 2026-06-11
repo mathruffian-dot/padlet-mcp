@@ -65,20 +65,20 @@ async function api(path, options = {}) {
  * API 的 board ID 是 16-22 字元的英數字串。
  * 網址最後一段 slug 的結尾雜湊通常就是它；解析不到時給出取得教學。
  */
+const ID_RE = /^[A-Za-z0-9_]{15,22}$/; // 實測 board ID 可能只有 15 字元
 function resolveBoardId(input) {
   const s = input.trim();
-  // 純 ID：16-22 字元英數
-  if (/^[A-Za-z0-9_]{16,22}$/.test(s)) return s;
+  if (ID_RE.test(s)) return s;
   // 網址：取最後一段 path，再取最後一個 '-' 之後的雜湊
   if (s.includes("padlet.")) {
     const lastSegment = new URL(s).pathname.split("/").filter(Boolean).pop() ?? "";
     const hash = lastSegment.split("-").pop() ?? "";
-    if (/^[A-Za-z0-9_]{16,22}$/.test(hash)) return hash;
+    if (ID_RE.test(hash)) return hash;
   }
   throw new Error(
     `無法從「${input}」解析出 board ID。\n` +
       `請改用官方方式取得：打開該 Padlet → 右上「⋯」選單 → Developer info → 複製 API ID。\n` +
-      `（board ID 是 16-22 個英數字元的字串）`
+      `（board ID 是 15-22 個英數字元的字串）`
   );
 }
 
@@ -94,7 +94,7 @@ function summarizeBoard(json) {
       id: board.id,
       title: board.attributes?.title,
       description: board.attributes?.description,
-      url: board.attributes?.webUrl ?? board.attributes?.url,
+      url: board.attributes?.webUrl?.live ?? board.attributes?.webUrl,
     },
     sections: sections.map((s) => ({
       id: s.id,
@@ -176,17 +176,22 @@ server.registerTool(
     if (!statusUrl) return ok({ message: "已送出建立請求，但沒拿到 statusUrl", raw: created });
 
     // 輪詢直到完成（最多 40 次 × 3 秒 = 2 分鐘）
+    // 實測格式：attributes.status 為 "in_progress" → "success"，
+    // 完成後 board 物件巢狀在 attributes.board
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 3000));
       const status = await api(statusUrl);
       const attrs = status.data?.attributes ?? {};
-      const state = (attrs.status ?? attrs.state ?? "").toLowerCase();
-      if (["completed", "complete", "done", "success", "succeeded"].includes(state)) {
+      const state = (attrs.status ?? "").toLowerCase();
+      if (["success", "completed", "complete", "done", "succeeded"].includes(state)) {
+        const board = attrs.board ?? {};
         return ok({
           message: "✅ 新 Padlet 建立完成！",
-          boardId: attrs.boardId ?? status.data?.relationships?.board?.data?.id ?? null,
-          url: attrs.boardUrl ?? attrs.url ?? attrs.webUrl ?? null,
-          raw: status,
+          boardId: board.id ?? null,
+          title: board.attributes?.title ?? null,
+          url: board.attributes?.webUrl?.live ?? null,
+          qrCode: board.attributes?.webUrl?.qrCode ?? null,
+          note: "提醒：AI 生成的版子預設「關閉」留言與 reactions，若要用 create_comment / add_reaction，請先到版子設定開啟。",
         });
       }
       if (["failed", "error"].includes(state)) {
@@ -255,7 +260,7 @@ server.registerTool(
     // section 名稱 → ID 自動比對
     let sectionId = null;
     if (section) {
-      if (/^[A-Za-z0-9_]{16,22}$/.test(section)) {
+      if (/^sec_[A-Za-z0-9]+$/.test(section)) {
         sectionId = section;
       } else {
         const boardJson = await api(`/boards/${boardId}?include=sections`);
@@ -299,7 +304,8 @@ server.registerTool(
   "create_comment",
   {
     description:
-      "在指定的 post（卡片）底下新增一則留言。適合用來給個別回饋。post ID 可先用 get_board 取得。",
+      "在指定的 post（卡片）底下新增一則留言。適合用來給個別回饋。post ID 可先用 get_board 取得。" +
+      "注意：board 必須先在 Padlet 設定中開啟留言功能，否則會收到 COMMENTS_NOT_ALLOWED 錯誤。",
     inputSchema: {
       post_id: z.string().describe("post 的 hash ID（用 get_board 查）"),
       html: z
@@ -326,7 +332,8 @@ server.registerTool(
   "add_reaction",
   {
     description:
-      "對指定 post 加 reaction：like（讚/愛心）、star（0-5 星）、grade（0-100 分）、vote（+1/-1）。注意 board 本身要先在設定中開啟對應的 reaction 類型。",
+      "對指定 post 加 reaction：like（讚/愛心）、star（0-5 星）、grade（0-100 分）、vote（+1/-1）。" +
+      "注意：board 必須先在 Padlet 設定中開啟 reactions（AI 生成的版子預設關閉），否則會收到 Reactions not enabled 錯誤。",
     inputSchema: {
       post_id: z.string().describe("post 的 hash ID（用 get_board 查）"),
       type: z
