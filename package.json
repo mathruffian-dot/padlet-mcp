@@ -9,6 +9,7 @@
   },
   "files": [
     "index.js",
+    "setup.js",
     "README.md",
     "使用說明.md"
   ],

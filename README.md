@@ -23,17 +23,35 @@
 > ⚠️ 需要 Padlet 付費訂閱才能產生 API key。
 > ⚠️ API 只能操作你是 **admin / owner** 的版子。
 
-## 安裝（三選一）
+## 安裝
 
-### 我用 Claude Code（一行指令）
+### 🚀 一鍵安裝（推薦）：自動偵測你的所有 AI Agent
+
+```bash
+npx -y padlet-mcp setup
+```
+
+精靈會自動偵測並寫入以下 agent 的設定（改動前自動備份）：
+
+| Agent | 涵蓋範圍 |
+|-------|----------|
+| Claude Code | CLI（`~/.claude.json`） |
+| Claude Desktop | 桌面版 |
+| Codex | desktop + CLI（共用 `~/.codex/config.toml`） |
+| OpenCode | desktop + CLI（共用 `~/.config/opencode/opencode.json`） |
+| Antigravity | IDE + CLI（共用 `~/.gemini/config/mcp_config.json`） |
+
+選用參數：`--key <金鑰>`（跳過互動詢問）、`--dry-run`（只看會改什麼，不寫入）、`--local`（註冊本機路徑而非 npx，開發用）。
+
+### 手動安裝（單一 agent）
+
+**Claude Code（一行指令）**
 
 ```bash
 claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
 ```
 
-### 我用 Claude Desktop
-
-打開設定檔 `claude_desktop_config.json`，加入：
+**Claude Desktop / Cursor / 其他 MCP client**：設定檔加入標準 stdio 片段：
 
 ```json
 {
@@ -46,10 +64,6 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
   }
 }
 ```
-
-### 我用 Cursor / 其他 MCP client
-
-標準 stdio MCP 設定，同上面的 JSON 片段。
 
 > 💡 需要 Node.js 18 以上。`npx -y` 會自動下載最新版，不用手動安裝更新。
 

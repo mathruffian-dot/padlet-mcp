@@ -12,6 +12,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+// ── 子指令分流：`npx -y padlet-mcp setup` 進入一鍵安裝精靈 ──
+if (process.argv[2] === "setup") {
+  const { runSetup } = await import("./setup.js");
+  await runSetup();
+  process.exit(0);
+}
+
 const API_KEY = process.env.PADLET_API_KEY;
 const BASE = "https://api.padlet.dev/v1";
 
