@@ -11,6 +11,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { resolveApiUrl, validatePoll, validateReaction } from "./lib.js";
 
 // ── 子指令分流：`npx -y padlet-mcp setup` 進入一鍵安裝精靈 ──
 if (process.argv[2] === "setup") {
@@ -20,8 +21,6 @@ if (process.argv[2] === "setup") {
 }
 
 const API_KEY = process.env.PADLET_API_KEY;
-const BASE = "https://api.padlet.dev/v1";
-
 // ── 首次使用精靈：沒有 API key 時給出繁中教學而不是直接報錯 ──
 if (!API_KEY) {
   console.error(`
@@ -50,7 +49,7 @@ const HEADERS = {
 
 /** 統一的 API 呼叫：自動處理錯誤訊息，讓 AI 拿到可讀的失敗原因 */
 async function api(path, options = {}) {
-  const url = path.startsWith("http") ? path : `${BASE}${path}`;
+  const url = resolveApiUrl(path);
   const res = await fetch(url, { headers: HEADERS, ...options });
   const text = await res.text();
   if (!res.ok) {
@@ -251,6 +250,7 @@ server.registerTool(
       body: z.string().optional().describe("卡片內文"),
       attachment_url: z
         .string()
+        .url()
         .optional()
         .describe("附件的公開網址（圖片、影片、YouTube、PDF、網頁連結等）"),
       attachment_caption: z.string().optional().describe("附件的說明文字"),
@@ -280,7 +280,7 @@ server.registerTool(
     section,
     color,
   }) => {
-    const hasPoll = poll_question && poll_choices?.length;
+    const hasPoll = validatePoll(poll_question, poll_choices);
     if (!subject && !body && !attachment_url && !hasPoll) {
       throw new Error("subject、body、attachment_url、poll 至少要有一個");
     }
@@ -383,6 +383,7 @@ server.registerTool(
     },
   },
   async ({ post_id, type, value }) => {
+    validateReaction(type, value);
     const json = await api(`/posts/${post_id}/reactions`, {
       method: "POST",
       body: JSON.stringify({

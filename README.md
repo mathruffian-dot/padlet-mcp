@@ -41,7 +41,13 @@ npx -y padlet-mcp setup
 | OpenCode | desktop + CLI（共用 `~/.config/opencode/opencode.json`） |
 | Antigravity | IDE + CLI（共用 `~/.gemini/config/mcp_config.json`） |
 
-選用參數：`--key <金鑰>`（跳過互動詢問）、`--dry-run`（只看會改什麼，不寫入）、`--local`（註冊本機路徑而非 npx，開發用）。
+選用參數：
+
+- `--update`：更新既有 Padlet MCP 設定並輪替 API Key
+- `--dry-run`：只看會改什麼，不寫入
+- `--local`：註冊本機路徑而非 npx，開發用
+
+> 🔐 建議使用互動輸入或 `PADLET_API_KEY` 環境變數。`--key` 僅保留相容性，可能把金鑰留在命令歷史或程序列表。
 
 ### 手動安裝（單一 agent）
 
@@ -73,6 +79,14 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
 
 看到你的帳號名稱就代表成功了。
 
+若重新產生 API Key：
+
+```bash
+npx -y padlet-mcp setup --update
+```
+
+更新後需重新啟動 Agent，讓 MCP 程序載入新環境變數。
+
 ## 三個示範玩法（教學場景）
 
 以下玩法**只需要 Padlet API key**，不需要 OpenAI key 等其他金鑰：
@@ -98,4 +112,4 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
 
 ## License
 
-MIT
+[MIT](LICENSE)

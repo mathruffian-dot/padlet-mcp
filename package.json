@@ -1,6 +1,6 @@
 {
   "name": "padlet-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Padlet MCP Server — 讓 Claude Code / Claude Desktop / Cursor 等 AI Agent 直接操作 Padlet：一句話生成新版子、讀牆、貼卡片、留言、加 reaction。",
   "type": "module",
   "main": "index.js",
@@ -9,12 +9,16 @@
   },
   "files": [
     "index.js",
+    "lib.js",
     "setup.js",
     "README.md",
     "使用說明.md"
   ],
   "engines": {
     "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test"
   },
   "keywords": [
     "padlet",

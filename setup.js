@@ -1,6 +1,6 @@
 /**
  * padlet-mcp 一鍵安裝精靈
- * 用法：npx -y padlet-mcp setup [--key <API_KEY>] [--local] [--dry-run]
+ * 用法：npx -y padlet-mcp setup [--update] [--local] [--dry-run]
  *
  * 自動偵測本機已安裝的 AI Agent，把 padlet MCP server 寫入各自的設定檔：
  *   - Claude Code CLI     ~/.claude.json                （mcpServers，JSON）
@@ -9,7 +9,7 @@
  *   - OpenCode desktop/CLI ~/.config/opencode/opencode.json（mcp，JSON、command 為陣列）
  *   - Antigravity IDE/CLI ~/.gemini/config/mcp_config.json（mcpServers，JSON）
  *
- * 安全設計：改檔前先備份成 <檔名>.bak-<時間戳>；已存在 padlet 設定時跳過不覆蓋。
+ * 安全設計：改檔前先備份成 <檔名>.bak-<時間戳>；預設不覆蓋，--update 才更新既有設定。
  */
 
 import fs from "node:fs";
@@ -17,6 +17,7 @@ import path from "node:path";
 import os from "node:os";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { validatePadletApiKey } from "./lib.js";
 
 const HOME = os.homedir();
 const IS_WIN = process.platform === "win32";
@@ -30,6 +31,7 @@ const getOpt = (name) => {
 };
 const DRY_RUN = getFlag("--dry-run");
 const USE_LOCAL = getFlag("--local"); // 用本機 index.js 絕對路徑（開發/未發布 npm 時）
+const UPDATE_EXISTING = getFlag("--update");
 
 // ── 註冊用的啟動指令 ──
 function serverCommand() {
@@ -40,11 +42,14 @@ function serverCommand() {
   return { command: IS_WIN ? "npx.cmd" : "npx", args: ["-y", "padlet-mcp"] };
 }
 
-// ── 取得 API key：--key 參數 > 環境變數 > 互動式詢問 ──
+// ── 取得 API key：環境變數 > 互動式詢問。--key 僅保留相容性，不建議使用。 ──
 async function getApiKey() {
   const fromArg = getOpt("--key");
-  if (fromArg) return fromArg;
-  if (process.env.PADLET_API_KEY) return process.env.PADLET_API_KEY;
+  if (fromArg) {
+    console.warn("⚠️ --key 可能留在命令歷史或程序列表，建議改用互動輸入或 PADLET_API_KEY 環境變數。");
+    return validatePadletApiKey(fromArg);
+  }
+  if (process.env.PADLET_API_KEY) return validatePadletApiKey(process.env.PADLET_API_KEY);
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   console.log("\n📋 取得 API key：padlet.com/dashboard/settings → Developer → Generate（需付費訂閱）");
   const key = await new Promise((res) => rl.question("請貼上你的 Padlet API key：", res));
@@ -53,7 +58,7 @@ async function getApiKey() {
     console.error("❌ 沒有輸入 API key，安裝中止。");
     process.exit(1);
   }
-  return key.trim();
+  return validatePadletApiKey(key.trim());
 }
 
 // ── 共用小工具 ──
@@ -72,7 +77,7 @@ function writeJson(file, obj) {
   fs.writeFileSync(file, JSON.stringify(obj, null, 2) + "\n", "utf8");
 }
 
-// ── 各 agent 的安裝器：回傳 "installed" | "skipped"（已存在）| null（未偵測到）──
+// ── 各 agent 的安裝器：回傳 "installed" | "updated" | "skipped" | null ──
 
 /** 標準 mcpServers JSON 格式（Claude Code、Claude Desktop、Antigravity 共用） */
 function installStandardJson(file, apiKey, { createIfMissing = false } = {}) {
@@ -85,12 +90,13 @@ function installStandardJson(file, apiKey, { createIfMissing = false } = {}) {
   }
   const json = fs.existsSync(file) ? readJson(file) : {};
   json.mcpServers ??= {};
-  if (json.mcpServers.padlet) return "skipped";
+  const exists = Boolean(json.mcpServers.padlet);
+  if (exists && !UPDATE_EXISTING) return "skipped";
   backup(file);
   const { command, args } = serverCommand();
   json.mcpServers.padlet = { command, args, env: { PADLET_API_KEY: apiKey } };
   writeJson(file, json);
-  return "installed";
+  return exists ? "updated" : "installed";
 }
 
 function installClaudeCode(apiKey) {
@@ -114,13 +120,32 @@ function installAntigravity(apiKey) {
   return installStandardJson(file, apiKey, { createIfMissing: true });
 }
 
-/** Codex：TOML，採「檢查字串 + 附加區塊」策略，不解析整份 TOML 以免破壞既有內容 */
+export function replaceCodexPadletBlock(toml, apiKey) {
+  const keyLine = `PADLET_API_KEY = ${JSON.stringify(apiKey)}`;
+  const envSection = /(\[mcp_servers\.padlet\.env\][\s\S]*?)(?=\r?\n\[|$)/;
+  if (!envSection.test(toml)) {
+    throw new Error("找到 Padlet MCP 設定，但缺少 [mcp_servers.padlet.env] 區段，請手動檢查 config.toml");
+  }
+  return toml.replace(envSection, (section) => {
+    if (/^PADLET_API_KEY\s*=/m.test(section)) {
+      return section.replace(/^PADLET_API_KEY\s*=.*$/m, keyLine);
+    }
+    return `${section.trimEnd()}\n${keyLine}\n`;
+  });
+}
+
+/** Codex：TOML 新增時附加區塊；更新時只替換 Padlet env 區段內的 API key。 */
 function installCodex(apiKey) {
   const file = path.join(HOME, ".codex", "config.toml");
   if (!fs.existsSync(file)) return null;
   const toml = fs.readFileSync(file, "utf8");
-  if (/\[mcp_servers\.padlet\]/.test(toml)) return "skipped";
+  const exists = /\[mcp_servers\.padlet\]/.test(toml);
+  if (exists && !UPDATE_EXISTING) return "skipped";
   backup(file);
+  if (exists) {
+    if (!DRY_RUN) fs.writeFileSync(file, replaceCodexPadletBlock(toml, apiKey), "utf8");
+    return "updated";
+  }
   const { command, args } = serverCommand();
   const argsToml = args.map((a) => JSON.stringify(a)).join(", ");
   const block = `
@@ -143,7 +168,8 @@ function installOpenCode(apiKey) {
   if (!fs.existsSync(file)) return null;
   const json = readJson(file);
   json.mcp ??= {};
-  if (json.mcp.padlet) return "skipped";
+  if (json.mcp.padlet && !UPDATE_EXISTING) return "skipped";
+  const exists = Boolean(json.mcp.padlet);
   backup(file);
   const { command, args } = serverCommand();
   json.mcp.padlet = {
@@ -153,7 +179,7 @@ function installOpenCode(apiKey) {
     environment: { PADLET_API_KEY: apiKey },
   };
   writeJson(file, json);
-  return "installed";
+  return exists ? "updated" : "installed";
 }
 
 // ── 主流程 ──
@@ -169,8 +195,14 @@ export async function runSetup() {
     ["Antigravity（IDE + CLI 共用設定）", installAntigravity],
   ];
 
-  const icons = { installed: "✅ 已安裝", skipped: "⏭️ 已有 padlet 設定，跳過", null: "➖ 未偵測到" };
+  const icons = {
+    installed: "✅ 已安裝",
+    updated: "🔄 已更新",
+    skipped: "⏭️ 已有 padlet 設定，跳過（使用 --update 可輪替 Key）",
+    null: "➖ 未偵測到",
+  };
   let installedCount = 0;
+  let updatedCount = 0;
 
   for (const [name, fn] of targets) {
     let result = null;
@@ -182,10 +214,11 @@ export async function runSetup() {
     }
     console.log(`  ${icons[result] ?? icons.null} ${name}`);
     if (result === "installed") installedCount++;
+    if (result === "updated") updatedCount++;
   }
 
-  console.log(`\n完成：${installedCount} 個 agent 新增了 padlet MCP。`);
-  if (installedCount > 0) {
+  console.log(`\n完成：${installedCount} 個 agent 新增、${updatedCount} 個 agent 更新 padlet MCP。`);
+  if (installedCount > 0 || updatedCount > 0) {
     console.log("重新啟動各 agent 後，說「用 padlet 的 whoami 確認連線」即可驗證。");
     console.log("（改動前的設定檔已備份為 *.bak-<時間戳>）");
   }
