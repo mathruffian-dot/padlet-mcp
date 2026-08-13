@@ -101,6 +101,10 @@ function summarizeBoard(json) {
       title: board.attributes?.title,
       description: board.attributes?.description,
       url: board.attributes?.webUrl?.live ?? board.attributes?.webUrl,
+      // settings 內含版子的互動設定（留言／reactions 是否開啟）；
+      // customFields 是自訂欄位的定義，create_post 的 custom_fields 要用這裡的欄位 ID
+      settings: board.attributes?.settings,
+      customFields: board.attributes?.customFields,
     },
     sections: sections.map((s) => ({
       id: s.id,
@@ -110,7 +114,12 @@ function summarizeBoard(json) {
       id: p.id,
       subject: p.attributes?.content?.subject,
       body: p.attributes?.content?.bodyHtml ?? p.attributes?.content?.body,
+      // 附件網址：學生上傳的照片／檔案由此取得（批改產線的收件口）
+      attachment: p.attributes?.content?.attachment ?? null,
       color: p.attributes?.color,
+      status: p.attributes?.status,
+      sortIndex: p.attributes?.sortIndex,
+      customFields: p.attributes?.customFields,
       sectionId: p.relationships?.section?.data?.id ?? null,
       author: p.relationships?.author?.data?.id ?? null,
       createdAt: p.attributes?.createdAt,
@@ -127,7 +136,7 @@ const ok = (obj) => ({
   content: [{ type: "text", text: typeof obj === "string" ? obj : JSON.stringify(obj, null, 2) }],
 });
 
-const server = new McpServer({ name: "padlet", version: "0.1.0" });
+const server = new McpServer({ name: "padlet", version: "0.2.0" });
 
 // ════════════════════════════════════════════════
 // Tool 1：whoami — 驗證 API key、查目前使用者
@@ -243,11 +252,13 @@ server.registerTool(
     description:
       "在 Padlet board 上新增一則 post（卡片）。可用 section 的「標題名稱」指定要貼到哪個區段（工具會自動比對 ID）。" +
       "附件支援兩類：①任何公開網址（圖片/影片/YouTube/PDF/網頁，Padlet 自動產生預覽）②poll 投票（問題＋選項）。" +
-      "不支援直接上傳本機檔案——檔案需先有公開網址。",
+      "不支援直接上傳本機檔案——檔案需先有公開網址。" +
+      "進階：可用 after_post_id 精準控制排序、custom_fields 寫入結構化資料（如評分）、" +
+      "status 送審或排程、canvas_props / map_props 定位（僅 canvas / map 版面）。",
     inputSchema: {
       board: z.string().describe("Padlet 網址或 board ID"),
-      subject: z.string().optional().describe("卡片標題"),
-      body: z.string().optional().describe("卡片內文"),
+      subject: z.string().max(500).optional().describe("卡片標題（上限 500 字）"),
+      body: z.string().max(10000).optional().describe("卡片內文（上限 10000 字）"),
       attachment_url: z
         .string()
         .url()
@@ -267,6 +278,41 @@ server.registerTool(
         .enum(["red", "orange", "green", "blue", "purple"])
         .optional()
         .describe("卡片顏色"),
+      after_post_id: z
+        .string()
+        .optional()
+        .describe(
+          "把這張卡片排在指定 post 之後（給該 post 的 ID）。用來精準控制順序，例如教材要照第 1 頁、第 2 頁排下去"
+        ),
+      custom_fields: z
+        .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+        .optional()
+        .describe(
+          "自訂欄位，格式 { 欄位ID: 值 }。⚠️ 欄位必須先在 Padlet 版子設定中建立。" +
+            "適合寫入結構化資料（評分、規準等級、組別），比塞進留言好查好統計"
+        ),
+      status: z
+        .enum(["approved", "pending_moderation", "scheduled"])
+        .optional()
+        .describe(
+          "貼文狀態：approved 直接顯示（預設）、pending_moderation 送審後才顯示、scheduled 排程"
+        ),
+      canvas_props: z
+        .object({
+          left: z.number().int().describe("距左邊界像素"),
+          top: z.number().int().describe("距上邊界像素"),
+          width: z.number().int().describe("卡片寬度像素"),
+        })
+        .optional()
+        .describe("卡片在 canvas 版面的位置與寬度（僅 canvas 類版面有效，可做心智圖／概念圖）"),
+      map_props: z
+        .object({
+          latitude: z.number().describe("緯度"),
+          longitude: z.number().describe("經度"),
+          locationName: z.string().optional().describe("地點名稱"),
+        })
+        .optional()
+        .describe("卡片在 map 版面的座標與地點名（僅 map 類版面有效，可做地理／田野調查活動）"),
     },
   },
   async ({
@@ -279,6 +325,11 @@ server.registerTool(
     poll_choices,
     section,
     color,
+    after_post_id,
+    custom_fields,
+    status,
+    canvas_props,
+    map_props,
   }) => {
     const hasPoll = validatePoll(poll_question, poll_choices);
     if (!subject && !body && !attachment_url && !hasPoll) {
@@ -320,7 +371,15 @@ server.registerTool(
     const payload = {
       data: {
         type: "post",
-        attributes: { content, ...(color ? { color } : {}) },
+        attributes: {
+          content,
+          ...(color ? { color } : {}),
+          ...(status ? { status } : {}),
+          ...(after_post_id ? { manualSortPosition: { previousPostId: after_post_id } } : {}),
+          ...(custom_fields ? { customFields: custom_fields } : {}),
+          ...(canvas_props ? { canvasProps: canvas_props } : {}),
+          ...(map_props ? { mapProps: map_props } : {}),
+        },
         ...(sectionId ? { relationships: { section: { data: { id: sectionId } } } } : {}),
       },
     };

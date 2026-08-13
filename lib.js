@@ -1,13 +1,28 @@
 const PADLET_API_ORIGIN = "https://api.padlet.dev";
 const PADLET_API_BASE_PATH = "/v1";
 
+/**
+ * 可以傳送 API key 的官方端點白名單。
+ *
+ * ⚠️ 為什麼需要兩組：一般端點在 api.padlet.dev/v1，但 AI Recipe 建牆回傳的
+ * 輪詢網址（statusUrl）在 padlet.dev/api/public/v1（見官方文件 ai-recipe-board-
+ * creation-status-url-object）。只放行前者會讓 create_board 的輪詢被自己的
+ * 白名單擋掉，整個建牆功能失效。
+ */
+const ALLOWED_ENDPOINTS = [
+  { origin: PADLET_API_ORIGIN, pathPrefix: `${PADLET_API_BASE_PATH}/` },
+  { origin: "https://padlet.dev", pathPrefix: "/api/public/v1/" },
+];
+
 export function resolveApiUrl(path) {
-  const candidate =
-    path.startsWith("http://") || path.startsWith("https://")
-      ? path
-      : `${PADLET_API_ORIGIN}${PADLET_API_BASE_PATH}/${path.replace(/^\/+/, "")}`;
+  const candidate = /^https?:\/\//.test(path)
+    ? path
+    : `${PADLET_API_ORIGIN}${PADLET_API_BASE_PATH}/${path.replace(/^\/+/, "")}`;
   const url = new URL(candidate);
-  if (url.origin !== PADLET_API_ORIGIN || !url.pathname.startsWith(`${PADLET_API_BASE_PATH}/`)) {
+  const isAllowed = ALLOWED_ENDPOINTS.some(
+    ({ origin, pathPrefix }) => url.origin === origin && url.pathname.startsWith(pathPrefix)
+  );
+  if (!isAllowed) {
     throw new Error(`拒絕傳送 Padlet API key 到非官方 API 網址：${url.origin}${url.pathname}`);
   }
   return url.toString();

@@ -10,9 +10,23 @@ test("resolveApiUrl accepts Padlet API paths and official status URLs", () => {
   );
 });
 
-test("resolveApiUrl rejects non-Padlet hosts and paths outside v1", () => {
+// 迴歸測試：AI Recipe 建牆回傳的 statusUrl 在 padlet.dev/api/public/v1，
+// 不在 api.padlet.dev/v1。早期白名單只放行後者，導致 create_board 的輪詢
+// 被自己的安全檢查擋掉。網址取自官方文件實例。
+test("resolveApiUrl accepts the real AI Recipe statusUrl on padlet.dev", () => {
+  const statusUrl =
+    "https://padlet.dev/api/public/v1/ai-recipe-boards/status/ai_recipe_board_7e3e243039";
+  assert.equal(resolveApiUrl(statusUrl), statusUrl);
+});
+
+test("resolveApiUrl rejects non-Padlet hosts and paths outside the allowed prefixes", () => {
   assert.throws(() => resolveApiUrl("https://example.com/steal"), /拒絕傳送/);
   assert.throws(() => resolveApiUrl("https://api.padlet.dev/admin"), /拒絕傳送/);
+  // padlet.dev 只放行 /api/public/v1/，其餘路徑仍須擋掉
+  assert.throws(() => resolveApiUrl("https://padlet.dev/dashboard/settings"), /拒絕傳送/);
+  // 子網域仿冒與明文 http 都不能通過
+  assert.throws(() => resolveApiUrl("https://padlet.dev.evil.com/api/public/v1/me"), /拒絕傳送/);
+  assert.throws(() => resolveApiUrl("http://api.padlet.dev/v1/me"), /拒絕傳送/);
 });
 
 test("validatePoll requires a complete and useful poll", () => {
