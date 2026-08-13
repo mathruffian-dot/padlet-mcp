@@ -3,3 +3,10 @@ node_modules/
 *.key
 desktop.ini
 *.tmp
+
+# 圖床是獨立的 repo（mathruffian-dot/padlet-assets），不要跟著本 repo 提交
+padlet-assets/
+
+# 一次性的 API 探測腳本（會直接寫死金鑰，禁止進 git）
+get_me_boards.js
+scratch_*.js
