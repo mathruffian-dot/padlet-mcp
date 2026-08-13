@@ -47,10 +47,18 @@ Codex 的 `resolveApiUrl()` 只放行 `api.padlet.dev` + `/v1/`，但官方文�
 
 ## ➡️ 下一步
 
+### 🔴 阻塞點：這台電腦沒裝 padlet MCP
+
+`~/.claude.json` 的 mcpServers **沒有 padlet**，本 session 也沒有任何 `mcp__padlet__*` 工具 → agent 無法呼叫 Padlet API，**Phase 0 的 0-2 ~ 0-7 全部卡住**（開測試牆、實測 statusUrl、實測附件回傳都做不了）。
+
+（與 6/11 的紀錄不符是因為那是另一台電腦 `C:\Users\mathr\...`；本機從未安裝。）
+
+解法：使用者在自己的終端機跑 `npx -y padlet-mcp setup`（互動輸入新金鑰），重啟 Claude Code 後工具上線。這件事與下面第 2 項是同一個動作。
+
 ### 🔔 使用者收工時要提醒的兩件事
 
 1. **`npm publish`**（現在是 0.2.0）——需使用者本人在自己的終端機跑，npm 強制 2FA（Windows Hello security key），agent 端網址會被遮罩
-2. **`npx -y padlet-mcp setup --update`**——把輪替後的新金鑰同步進五個 agent 的設定
+2. **`npx -y padlet-mcp setup`**——把輪替後的新金鑰裝進這台電腦的 agent（本機從未安裝，所以是 `setup` 而不是 `--update`；其他已裝過的機器才用 `--update`）
 
 ### 技術任務
 
@@ -61,11 +69,31 @@ Codex 的 `resolveApiUrl()` 只放行 `api.padlet.dev` + `/v1/`，但官方文�
 5. 舊待辦（6/11）：測試牆開啟留言＋reactions 排練演示 C、`.mcpb` 打包、提交官方 MCP Registry、拍片三演示
 6. Obsidian 筆記待更新：本機路徑已改為 `C:\2026Padlet_agent\`，並補 6/14 之後的紀錄
 
-### 等使用者決定
+### Cloudflare 實查結果（2026-08-13）
 
-- 有沒有網域掛在 Cloudflare？（決定 R2 能否用於正式教材）
-- Skill 4 學生頁的隱私處理：代號化／加密碼／只做教師端
-- 0-4 的測試牆要不要先幫他開好
+本機 wrangler 為 OAuth 已登入狀態（`mathruffian@gmail.com`，帳號 `b87e54ac…`），權杖含 `zone:read`：
+
+- **zones：0 個** —— 這個帳號下沒有自有網域（與使用者認知不符，待確認是否在另一帳號）
+- **Pages 專案：9 個**，全部 `*.pages.dev` 無自訂網域。今天 07:55 才用 antigravity 部署過 `eco-01-decision-making`
+- **R2：權杖 scope 完全沒有 r2 權限** → 要用 R2 需重新 `wrangler login` 授權 ＋ 後台啟用 R2
+
+不影響主線：教材走 Pages 不需自有網域，學生作品的 R2 簽章網址也不需要。
+
+### 已確認的決定
+
+- 區段規格：參考資料 / 投票互動 / 留言互動 / 教材 N 段 / 備用 1~5（總 3+N+5）
+- Skill 4：**只做前端**（靜態站 + Pages），學生**代號化**（⚠️ 照片上的手寫姓名最容易漏，要一起去識別化）
+- 教材來源：本機檔案或 Obsidian 筆記皆可
+
+### Phase 0 樣本檔已備妥
+
+`phase0-samples/`（gitignore，產生器 `tools/gen_phase0_samples.py`）：照片 PNG、影片 MP4（5 秒）、PDF（2 頁）、Word 各一，解題刻意寫錯（移項沒變號）好讓視覺批改測試有東西可抓。使用者只需在測試牆建好後用學生身分上傳，資料夾內有 `讀我.txt` 說明。
+
+影片重新產生的指令（產生器只出首格 PNG）：
+
+```
+ffmpeg -y -loop 1 -i phase0-samples\_video_frame.png -f lavfi -i "sine=frequency=440:duration=5" -c:v libx264 -t 5 -pix_fmt yuv420p -vf "scale=1280:720,fade=t=in:st=0:d=0.6,fade=t=out:st=4.4:d=0.6" -c:a aac -shortest phase0-samples\02-學生影片-口說解釋.mp4
+```
 
 ## 🚧 注意事項
 

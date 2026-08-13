@@ -10,3 +10,6 @@ padlet-assets/
 # 一次性的 API 探測腳本（會直接寫死金鑰，禁止進 git）
 get_me_boards.js
 scratch_*.js
+
+# Phase 0 實測樣本檔（二進位，可用 tools/gen_phase0_samples.py 重新產生）
+phase0-samples/
