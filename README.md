@@ -43,7 +43,7 @@ npx -y padlet-mcp setup
 
 選用參數：
 
-- `--update`：更新既有 Padlet MCP 設定並輪替 API Key
+- `--update`：更新既有 Padlet MCP 設定——輪替 API Key，並把啟動指令改寫成最新形式
 - `--dry-run`：只看會改什麼，不寫入
 - `--local`：註冊本機路徑而非 npx，開發用
 
@@ -54,7 +54,7 @@ npx -y padlet-mcp setup
 **Claude Code（一行指令）**
 
 ```bash
-claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
+claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp@latest
 ```
 
 **Claude Desktop / Cursor / 其他 MCP client**：設定檔加入標準 stdio 片段：
@@ -64,14 +64,16 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp
   "mcpServers": {
     "padlet": {
       "command": "npx",
-      "args": ["-y", "padlet-mcp"],
+      "args": ["-y", "padlet-mcp@latest"],
       "env": { "PADLET_API_KEY": "你的金鑰" }
     }
   }
 }
 ```
 
-> 💡 需要 Node.js 18 以上。`npx -y` 會自動下載最新版，不用手動安裝更新。
+> 💡 需要 Node.js 18 以上。
+>
+> ⚠️ **一定要寫 `padlet-mcp@latest`，不要只寫 `padlet-mcp`。** npx 對沒指定版本的套件會沿用快取裡已有的版本，不保證回 registry 查新版——只寫 `padlet-mcp` 的話，你可能永遠停在第一次裝的那一版。釘 `@latest` 才會真的自動更新（`setup` 精靈寫入的就是這個形式）。
 
 ## 安裝後第一句話
 
@@ -86,6 +88,22 @@ npx -y padlet-mcp setup --update
 ```
 
 更新後需重新啟動 Agent，讓 MCP 程序載入新環境變數。
+
+## 怎麼更新到新版
+
+看你當初是怎麼裝的：
+
+| 你的設定長怎樣 | 怎麼更新 |
+|----------------|----------|
+| `npx -y padlet-mcp@latest` | ✅ 什麼都不用做，重啟 agent 就是最新版 |
+| `npx -y padlet-mcp`（沒有 `@latest`） | ⚠️ 可能卡在舊版 → 跑 `npx -y padlet-mcp@latest setup --update` 改寫設定 |
+| `node /某個路徑/index.js`（`--local` 裝的） | 它跑的是你本機那份原始碼，`git pull` 後重啟 agent 即可；想改成跟著 npm 版本走則跑 `setup --update` |
+
+確認目前實際跑到哪一版：
+
+```bash
+npx -y padlet-mcp@latest setup --dry-run
+```
 
 ## 三個示範玩法（教學場景）
 

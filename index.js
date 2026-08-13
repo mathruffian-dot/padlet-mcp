@@ -11,7 +11,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { createRequire } from "node:module";
 import { resolveApiUrl, validatePoll, validateReaction } from "./lib.js";
+
+// 版本號以 package.json 為單一來源，避免兩處手動同步而失準
+const { version: VERSION } = createRequire(import.meta.url)("./package.json");
 
 // ── 子指令分流：`npx -y padlet-mcp setup` 進入一鍵安裝精靈 ──
 if (process.argv[2] === "setup") {
@@ -149,7 +153,7 @@ const ok = (obj) => ({
   content: [{ type: "text", text: typeof obj === "string" ? obj : JSON.stringify(obj, null, 2) }],
 });
 
-const server = new McpServer({ name: "padlet", version: "0.2.0" });
+const server = new McpServer({ name: "padlet", version: VERSION });
 
 // ════════════════════════════════════════════════
 // Tool 1：whoami — 驗證 API key、查目前使用者
