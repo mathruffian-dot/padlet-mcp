@@ -88,6 +88,16 @@ function resolveBoardId(input) {
   );
 }
 
+/** 依 sortIndex 由小到大排序（不改動原陣列）。缺 sortIndex 的排最後。 */
+const sortBySortIndex = (items) =>
+  items
+    .slice()
+    .sort(
+      (a, b) =>
+        (a.attributes?.sortIndex ?? Number.MAX_SAFE_INTEGER) -
+        (b.attributes?.sortIndex ?? Number.MAX_SAFE_INTEGER)
+    );
+
 /** 把 API 回傳的 JSON 整理成精簡摘要，省 token 又好讀 */
 function summarizeBoard(json) {
   const board = json.data;
@@ -106,11 +116,14 @@ function summarizeBoard(json) {
       settings: board.attributes?.settings,
       customFields: board.attributes?.customFields,
     },
-    sections: sections.map((s) => ({
+    // ⚠️ 一律依 sortIndex 排序：實測 API 的 included 陣列順序**不等於**版面顯示順序
+    // （2026-08-13 實測 10 個 section 有兩處順序不同），不排序會讓區段規格驗收誤判。
+    sections: sortBySortIndex(sections).map((s) => ({
       id: s.id,
       title: s.attributes?.title,
+      sortIndex: s.attributes?.sortIndex,
     })),
-    posts: posts.map((p) => ({
+    posts: sortBySortIndex(posts).map((p) => ({
       id: p.id,
       subject: p.attributes?.content?.subject,
       body: p.attributes?.content?.bodyHtml ?? p.attributes?.content?.body,
@@ -189,6 +202,14 @@ server.registerTool(
     });
     const statusUrl = created.data?.attributes?.statusUrl;
     if (!statusUrl) return ok({ message: "已送出建立請求，但沒拿到 statusUrl", raw: created });
+
+    // 診斷用：statusUrl 的網域／路徑前綴必須在 resolveApiUrl 的白名單內，
+    // 曾因白名單漏了 padlet.dev/api/public/v1 而讓整個建牆功能失效。
+    // 只印 origin 與路徑前段，不含 board ID。
+    try {
+      const u = new URL(statusUrl);
+      console.error(`[create_board] statusUrl 位於 ${u.origin}${u.pathname.replace(/[^/]+$/, "")}`);
+    } catch {}
 
     // 輪詢直到完成（最多 40 次 × 3 秒 = 2 分鐘）
     // 實測格式：attributes.status 為 "in_progress" → "success"，

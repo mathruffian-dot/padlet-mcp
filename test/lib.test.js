@@ -10,10 +10,11 @@ test("resolveApiUrl accepts Padlet API paths and official status URLs", () => {
   );
 });
 
-// 迴歸測試：AI Recipe 建牆回傳的 statusUrl 在 padlet.dev/api/public/v1，
-// 不在 api.padlet.dev/v1。早期白名單只放行後者，導致 create_board 的輪詢
-// 被自己的安全檢查擋掉。網址取自官方文件實例。
-test("resolveApiUrl accepts the real AI Recipe statusUrl on padlet.dev", () => {
+// 官方文件把 statusUrl 記載成 padlet.dev/api/public/v1，但 2026-08-13 實測
+// 真實回傳是 api.padlet.dev/v1/ai-recipe-boards/status/<id>（已被上面那條涵蓋）。
+// 這條測的是「文件版格式」也放行，純屬防禦：若 Padlet 哪天改用文件寫的網址，
+// create_board 不會突然被白名單擋掉。
+test("resolveApiUrl also accepts the documented padlet.dev statusUrl format", () => {
   const statusUrl =
     "https://padlet.dev/api/public/v1/ai-recipe-boards/status/ai_recipe_board_7e3e243039";
   assert.equal(resolveApiUrl(statusUrl), statusUrl);

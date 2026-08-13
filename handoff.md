@@ -7,8 +7,16 @@
 
 - 分支：`master`，版本 **0.2.0**
 - npm 上仍是 **0.1.0** → 0.2.0 尚未發布
-- 測試：`npm test` **9/9 通過**（Node v24.14.0）；MCP `tools/list` 實測 7 個工具、新參數 JSON Schema 正確
+- 測試：`npm test` **9/9 通過**（Node v24.14.0）；MCP `tools/list` 與 `tools/call` 皆實測通過
 - 進行中的大任務：**padlet-mcp 教學應用**（示範牆 ＋ 四項技能），規劃見 `教學應用規劃.md`
+- **Phase 0 測試牆已建立**：<https://padlet.com/mathruffian/padlet-mcp-phase-0-hh8ifa3bdccexve2>（ID `hh8ifa3bdccexve2`）
+  下一步等使用者用**學生身分**把 `phase0-samples/` 的四個檔案貼上去，才能跑 0-5
+
+### Phase 0 已測出的三個結論
+
+1. ✅ `create_board` 正常，真實 statusUrl 在 `api.padlet.dev/v1/ai-recipe-boards/status/`
+2. ✅ AI Recipe 對區段**數量與順序可靠**，但會把指令裡的編號抄進標題 → 規格清單**不要編號**，並明寫「標題不得含編號」
+3. 🔴 `board.settings` 只回 `{font, colorScheme}`，**無法自動偵測留言／reactions 是否開啟**——只能提醒使用者，或主動試一次 `create_comment` 看是否 `COMMENTS_NOT_ALLOWED`（但成功會留下刪不掉的測試留言）
 
 ## ⏯️ 上次做到哪
 
@@ -22,11 +30,13 @@
 
 `lib.js`（網域白名單＋各種驗證）、`setup --update` 金鑰輪替、`test/`、CI、`LICENSE`。合併前先讀測試檔確認 `setup.js` 頂層無寫檔副作用才執行。
 
-**C. 🔴 修掉 Codex 引入的 `create_board` 迴歸**
+**C. ⚠️ 我曾誤判「`create_board` 有迴歸」——實測證明沒有（已更正）**
 
-Codex 的 `resolveApiUrl()` 只放行 `api.padlet.dev` + `/v1/`，但官方文件明載 AI Recipe 的 statusUrl 在 `https://padlet.dev/api/public/v1/ai-recipe-boards/status/...`——**兩個條件都不符，`create_board` 第一次輪詢就會被自己的白名單擋掉**。Codex 的測試綠燈是因為它斷言的是自己想像的網址。
+我依官方文件（statusUrl 記載為 `padlet.dev/api/public/v1/...`）推論 Codex 的白名單會擋掉自家輪詢網址。**實測真實 statusUrl 是 `https://api.padlet.dev/v1/ai-recipe-boards/status/<id>`，完全符合原白名單——是文件範例過時，功能從來沒壞。**
 
-已改為雙 origin 允許清單，並補迴歸測試（含 `padlet.dev.evil.com` 子網域仿冒、明文 http、`padlet.dev/dashboard/settings` 的拒絕案例）。
+白名單仍保留雙 origin，但定位改為**防禦性保留**（Padlet 若改用文件寫的格式不會突然壞掉）。`lib.js` 註解與測試名稱已更正。要收緊時 `padlet.dev/api/public/v1` 那組可拿掉。
+
+**教訓：官方文件的範例網址不等於實際行為，涉及外部 API 的推論必須實測才算數。**
 
 **D. `create_post` 補上五個官方支援欄位（v0.2.0）**
 
@@ -47,18 +57,37 @@ Codex 的 `resolveApiUrl()` 只放行 `api.padlet.dev` + `/v1/`，但官方文�
 
 ## ➡️ 下一步
 
-### 🔴 阻塞點：這台電腦沒裝 padlet MCP
+### ✅ padlet MCP 安裝狀況（2026-08-13 查清）
 
-`~/.claude.json` 的 mcpServers **沒有 padlet**，本 session 也沒有任何 `mcp__padlet__*` 工具 → agent 無法呼叫 Padlet API，**Phase 0 的 0-2 ~ 0-7 全部卡住**（開測試牆、實測 statusUrl、實測附件回傳都做不了）。
+本機**已安裝**，但**不在 Claude Code**：
 
-（與 6/11 的紀錄不符是因為那是另一台電腦 `C:\Users\mathr\...`；本機從未安裝。）
+| Agent | 設定檔 | 金鑰 |
+|-------|--------|------|
+| Codex | `~/.codex/config.toml` | 明文寫死，已是新金鑰 |
+| OpenCode | `~/.config/opencode/opencode.json` | `{env:PADLET_API_KEY}` 參照 ✅ 最安全 |
+| Antigravity | `~/.gemini/config/mcp_config.json` | 明文寫死，已是新金鑰 |
+| **Claude Code** | `~/.claude.json` | ❌ 未安裝（user scope／project scope／`.mcp.json` 都沒有） |
 
-解法：使用者在自己的終端機跑 `npx -y padlet-mcp setup`（互動輸入新金鑰），重啟 Claude Code 後工具上線。這件事與下面第 2 項是同一個動作。
+三者都指向本機路徑 `C:\2026Padlet_agent\index.js`。`PADLET_API_KEY` 已設為**使用者環境變數**（新金鑰），所以 `setup --update` 實質上已完成。
 
-### 🔔 使用者收工時要提醒的兩件事
+### 🔑 不需要 Claude Code 註冊 MCP 也能跑實測
 
-1. **`npm publish`**（現在是 0.2.0）——需使用者本人在自己的終端機跑，npm 強制 2FA（Windows Hello security key），agent 端網址會被遮罩
-2. **`npx -y padlet-mcp setup`**——把輪替後的新金鑰裝進這台電腦的 agent（本機從未安裝，所以是 `setup` 而不是 `--update`；其他已裝過的機器才用 `--update`）
+`PADLET_API_KEY` 在環境變數裡 → 直接用 JSON-RPC 餵 `node index.js` 即可呼叫任何工具，**全程不需取得金鑰明文**，而且測到的是我們自己的程式碼路徑而非裸 API。範本：
+
+```powershell
+$init = @{jsonrpc="2.0";id=1;method="initialize";params=@{protocolVersion="2024-11-05";capabilities=@{};clientInfo=@{name="probe";version="1"}}} | ConvertTo-Json -Depth 6 -Compress -EscapeHandling EscapeNonAscii
+$note = '{"jsonrpc":"2.0","method":"notifications/initialized"}'
+$call = @{jsonrpc="2.0";id=2;method="tools/call";params=@{name="whoami";arguments=@{}}} | ConvertTo-Json -Depth 6 -Compress -EscapeHandling EscapeNonAscii
+(@($init,$note,$call) | node index.js 2>$null) | Where-Object { $_ -match '"id":2' }
+```
+
+若仍要裝進 Claude Code，**不必把金鑰寫進 `~/.claude.json`**——省略 `env` 讓子行程繼承環境變數即可（比 Codex／Antigravity 的明文做法更安全）。需使用者自己跑並重啟 Claude Code。
+
+### 🔔 使用者收工時要提醒的事
+
+1. **`npm publish`**（現在是 0.2.0）——需使用者本人在自己的終端機跑，npm 強制 2FA（Windows Hello security key），agent 端網址會被遮罩。**這是唯一剩下的一項**。
+   ⚠️ 未 publish 前：本機三個 agent 跑的是本地 `index.js`（重啟即拿到新功能），但任何用 `npx -y padlet-mcp` 的人拿到的仍是 **0.1.0**，沒有新欄位。
+2. ~~`setup --update`~~ —— 已完成，金鑰皆為新金鑰，不需再做。
 
 ### 技術任務
 

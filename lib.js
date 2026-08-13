@@ -4,10 +4,12 @@ const PADLET_API_BASE_PATH = "/v1";
 /**
  * 可以傳送 API key 的官方端點白名單。
  *
- * ⚠️ 為什麼需要兩組：一般端點在 api.padlet.dev/v1，但 AI Recipe 建牆回傳的
- * 輪詢網址（statusUrl）在 padlet.dev/api/public/v1（見官方文件 ai-recipe-board-
- * creation-status-url-object）。只放行前者會讓 create_board 的輪詢被自己的
- * 白名單擋掉，整個建牆功能失效。
+ * 第一組是所有實際使用的端點——**含 AI Recipe 建牆的輪詢網址（statusUrl）**，
+ * 2026-08-13 實測回傳 https://api.padlet.dev/v1/ai-recipe-boards/status/<id>。
+ *
+ * 第二組 padlet.dev/api/public/v1 是官方文件 ai-recipe-board-creation-status-url-object
+ * 標示的格式，但實際 API 並未使用。保留放行是為了萬一 Padlet 改回文件寫的網址時
+ * create_board 不會突然壞掉——若哪天要收緊白名單，這組是可以拿掉的。
  */
 const ALLOWED_ENDPOINTS = [
   { origin: PADLET_API_ORIGIN, pathPrefix: `${PADLET_API_BASE_PATH}/` },
