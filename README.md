@@ -75,6 +75,32 @@ claude mcp add padlet -e PADLET_API_KEY=你的金鑰 -- npx -y padlet-mcp@latest
 >
 > ⚠️ **一定要寫 `padlet-mcp@latest`，不要只寫 `padlet-mcp`。** npx 對沒指定版本的套件會沿用快取裡已有的版本，不保證回 registry 查新版——只寫 `padlet-mcp` 的話，你可能永遠停在第一次裝的那一版。釘 `@latest` 才會真的自動更新（`setup` 精靈寫入的就是這個形式）。
 
+### 直接從 GitHub 安裝（搶先版 / 不走 npm）
+
+npm 上的版本可能落後於 repo。想直接跑 GitHub 上的最新程式碼：
+
+```bash
+npx -y github:mathruffian-dot/padlet-mcp setup
+```
+
+也可以直接當 MCP server 註冊：
+
+```json
+{
+  "mcpServers": {
+    "padlet": {
+      "command": "npx",
+      "args": ["-y", "github:mathruffian-dot/padlet-mcp"],
+      "env": { "PADLET_API_KEY": "你的金鑰" }
+    }
+  }
+}
+```
+
+- 需要本機有 `git`（npx 會 clone repo 再裝依賴）
+- 可釘特定版本／分支：`github:mathruffian-dot/padlet-mcp#v0.2.0`
+- 啟動比 npm registry 版稍慢，且**同樣有 npx 快取問題**——要強制更新就先清快取或釘 commit
+
 ## 安裝後第一句話
 
 > 「用 padlet 的 whoami 確認連線」
