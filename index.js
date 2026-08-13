@@ -92,15 +92,27 @@ function resolveBoardId(input) {
   );
 }
 
-/** 依 sortIndex 由小到大排序（不改動原陣列）。缺 sortIndex 的排最後。 */
-const sortBySortIndex = (items) =>
-  items
+/**
+ * 依 sortIndex 排序（不改動原陣列）。
+ *
+ * ⚠️ section 與 post 的方向相反，這是 2026-08-13 實測結果，不是筆誤：
+ *   - **section 遞增**：實測 10 個區段的 sortIndex 遞增，對應版面第 1~10 區
+ *   - **post 遞減**：把新卡片指定 `after_post_id = p01`，其 sortIndex 落在
+ *     p01 與 p02 之間且**小於** p01（-11635401889 介於 -11634236416 與
+ *     -11636567362），證明「排在後面」＝ sortIndex 較小
+ *
+ * 兩者都不能依賴 API 回傳的 included 陣列順序。
+ */
+const sortBySortIndex = (items, direction = "asc") => {
+  const sign = direction === "asc" ? 1 : -1;
+  const missing = direction === "asc" ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
+  return items
     .slice()
     .sort(
       (a, b) =>
-        (a.attributes?.sortIndex ?? Number.MAX_SAFE_INTEGER) -
-        (b.attributes?.sortIndex ?? Number.MAX_SAFE_INTEGER)
+        sign * ((a.attributes?.sortIndex ?? missing) - (b.attributes?.sortIndex ?? missing))
     );
+};
 
 /** 把 API 回傳的 JSON 整理成精簡摘要，省 token 又好讀 */
 function summarizeBoard(json) {
@@ -120,14 +132,14 @@ function summarizeBoard(json) {
       settings: board.attributes?.settings,
       customFields: board.attributes?.customFields,
     },
-    // ⚠️ 一律依 sortIndex 排序：實測 API 的 included 陣列順序**不等於**版面顯示順序
-    // （2026-08-13 實測 10 個 section 有兩處順序不同），不排序會讓區段規格驗收誤判。
-    sections: sortBySortIndex(sections).map((s) => ({
+    // 一律重新排序：API 的 included 陣列順序不等於版面順序（實測 10 個 section 有兩處不同）。
+    // 方向依 sortBySortIndex 的說明——section 遞增、post 遞減。
+    sections: sortBySortIndex(sections, "asc").map((s) => ({
       id: s.id,
       title: s.attributes?.title,
       sortIndex: s.attributes?.sortIndex,
     })),
-    posts: sortBySortIndex(posts).map((p) => ({
+    posts: sortBySortIndex(posts, "desc").map((p) => ({
       id: p.id,
       subject: p.attributes?.content?.subject,
       body: p.attributes?.content?.bodyHtml ?? p.attributes?.content?.body,

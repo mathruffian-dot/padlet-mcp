@@ -12,7 +12,22 @@
 - **Phase 0 測試牆已建立**：<https://padlet.com/mathruffian/padlet-mcp-phase-0-hh8ifa3bdccexve2>（ID `hh8ifa3bdccexve2`）
   下一步等使用者用**學生身分**把 `phase0-samples/` 的四個檔案貼上去，才能跑 0-5
 
-### Phase 0 已測出的三個結論
+### 🔑 sortIndex 的方向：section 遞增、post 遞減（實測）
+
+這兩個方向相反，踩過一次坑：
+
+- **section**：sortIndex 遞增＝版面第 1~10 區（對照牆面實際渲染確認）
+- **post**：sortIndex **遞減**＝版面由上到下。證據是把新卡片指定 `after_post_id = p01`，
+  其 sortIndex 為 -11635401889，正好夾在 p01（-11634236416）與 p02（-11636567362）之間
+  且**小於** p01 → 「排在後面」＝ sortIndex 較小
+
+`summarizeBoard` 已依此排序（section `asc`、post `desc`）。**`after_post_id` 實測完全正常**，
+兩張錨定測試卡都精準落在指定卡片的後一位。
+
+> 教訓：先前只憑 sortIndex 遞減就判定「after_post_id 沒生效」是錯的。
+> 關鍵線索是**數量級**——錨定的卡片落在錨點 6 萬以內，未錨定的相差幾十億。
+
+### Phase 0 已測出的結論
 
 1. ✅ `create_board` 正常，真實 statusUrl 在 `api.padlet.dev/v1/ai-recipe-boards/status/`
 2. ✅ AI Recipe 對區段**數量與順序可靠**，但會把指令裡的編號抄進標題 → 規格清單**不要編號**，並明寫「標題不得含編號」
